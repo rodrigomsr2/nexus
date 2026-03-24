@@ -1,0 +1,99 @@
+# ============================================================
+# Gradle
+# ============================================================
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# ============================================================
+# Java
+# ============================================================
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# ============================================================
+# Spring Boot
+# ============================================================
+target/
+*.log
+*.log.*
+spring-shell.log
+
+# ============================================================
+# Node / npm / Vite (frontend)
+# ============================================================
+node_modules/
+dist/
+.vite/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# ============================================================
+# IDEs
+# ============================================================
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# ============================================================
+# OS
+# ============================================================
+.DS_Store
+Thumbs.db
+
+# ============================================================
+# Docker / infra local
+# ============================================================
+infra/docker/postgres-data/
+infra/docker/redis-data/
+infra/docker/keycloak-data/
+docker-compose.override.yml
+
+# ============================================================
+# Secrets — nunca commitar (ADR / convenção do projeto)
+# ============================================================
+*.env
+.env
+.env.local
+application-local.yml
+application-local.properties
+*-secrets.yml
+*-secrets.yaml
+infra/k8s/secrets/
+infra/helm/**/secrets.yaml
+
+# ============================================================
+# Flyway (gerados localmente)
+# ============================================================
+# Nunca apagar migrations já aplicadas — apenas ignorar rascunhos
+*.flyway.tmp
+
+# ============================================================
+# Testes / cobertura
+# ============================================================
+**/test-results/
+**/reports/
+.jacoco/
+jacoco.exec
