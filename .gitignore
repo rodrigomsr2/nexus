@@ -83,6 +83,8 @@ application-local.properties
 *-secrets.yaml
 infra/k8s/secrets/
 infra/helm/**/secrets.yaml
+CLAUDE.local.md
+.claude/settings.local.json
 
 # ============================================================
 # Flyway (gerados localmente)

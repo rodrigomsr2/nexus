@@ -1,6 +1,6 @@
 # Projeto Nexus
 
-Plataforma de gestão de pedidos B2B
+Plataforma de gestão de pedidos B2B. Arquitetura de microsserviços com 3 bounded contexts: **Orders**, **Catalog** e **Logistics**.
 
 ## Stack
 
@@ -15,7 +15,7 @@ Plataforma de gestão de pedidos B2B
 | Container | Docker + Kubernetes (Helm) |
 | CI/CD | GitHub Actions + ArgoCD |
 
-## Estrutura
+## Estrutura do repositório
 
 ```
 nexus/
@@ -28,11 +28,12 @@ nexus/
 │   ├── docker/            # init.sql, keycloak-realm.json
 │   ├── k8s/               # Deployments, HPA, PDB por serviço
 │   └── helm/              # Helm charts
+├── docs/                  # ADRs, runbooks, notas técnicas
 ├── .github/workflows/     # CI/CD pipeline
 └── docker-compose.yml     # Ambiente local completo
 ```
 
-## Início rápido (ambiente local)
+## Início rápido
 
 ### Pré-requisitos
 
@@ -40,13 +41,16 @@ nexus/
 - Java 21 (para rodar serviços localmente sem Docker)
 - Node.js 20+ (para o frontend)
 
-### 1. Subir toda a infraestrutura
+### 1. Subir a infraestrutura via script
 
 ```bash
-docker compose up -d
+chmod +x setup-local-env.sh
+./setup-local-env.sh
 ```
 
-Aguarde os health checks. Serviços disponíveis:
+O script instala dependências (k3s, Helm, yq), sobe a infra via Docker Compose, configura o k3s e instala o ArgoCD. Veja `docs/runbook/local-env.md` para detalhes completos.
+
+### Serviços disponíveis após o setup
 
 | Serviço | URL |
 |---------|-----|
@@ -57,6 +61,7 @@ Aguarde os health checks. Serviços disponíveis:
 | Logistics Service | http://localhost:8083 |
 | Keycloak Admin | http://localhost:8180 (admin/admin) |
 | Kafka UI | http://localhost:8090 |
+| ArgoCD UI | https://HOST_IP:30443 |
 | PostgreSQL | localhost:5432 |
 
 ### 2. Obter token JWT
@@ -65,7 +70,7 @@ Aguarde os health checks. Serviços disponíveis:
 curl -X POST http://localhost:8180/realms/nexus/protocol/openid-connect/token \
   -d "grant_type=password" \
   -d "client_id=nexus-backend" \
-  -d "username=admin@techcorp.com" \
+  -d "username=admin@nexus.local" \
   -d "password=admin123"
 ```
 
@@ -101,11 +106,11 @@ echo "VITE_API_BASE_URL=http://localhost:8080" > .env.local
 npm run dev
 ```
 
-### 5. Rodar os serviços Java localmente
+### 5. Rodar um serviço Java localmente (sem Docker)
 
 ```bash
-# Subir apenas a infra (postgres, redis, kafka, keycloak)
-docker compose up -d postgres redis kafka zookeeper keycloak
+# Subir apenas a infra
+docker compose up -d postgres redis zookeeper kafka keycloak
 
 # Rodar o serviço desejado
 cd orders-service
@@ -125,109 +130,43 @@ cd orders-service
 cd frontend && npm test
 ```
 
-## Variáveis de ambiente
+## Build
 
-Veja o arquivo `.env.example` ou as seções `environment:` no `docker-compose.yml`.
-Nunca commitar senhas reais — use Kubernetes Secrets ou um vault em produção.
+```bash
+# Compilar todos os serviços
+./gradlew build
 
-## Bounded Contexts
-
-### Orders
-
-**Ciclo de vida do pedido:**
-```
-RASCUNHO → CONFIRMADO → EM_SEPARACAO → DESPACHADO → ENTREGUE
-                ↓
-           CANCELADO
+# Gerar JAR de um serviço específico
+./gradlew :orders-service:bootJar
 ```
 
-| Status | Descrição |
-|--------|-----------|
-| `RASCUNHO` | Pedido criado mas não submetido. Itens podem ser alterados. |
-| `CONFIRMADO` | Submetido e aprovado pelo sistema de crédito. Bloqueado para edição. |
-| `EM_SEPARACAO` | Depósito iniciou a separação dos itens. |
-| `DESPACHADO` | Saiu do depósito com código de rastreamento. |
-| `ENTREGUE` | Confirmação de entrega recebida. |
-| `CANCELADO` | Solicitado antes do despacho. Após despacho, abre-se uma devolução. |
+## Documentação
 
-**Regras de negócio:**
+| Documento | Descrição |
+|-----------|-----------|
+| `docs/adr/` | Decisões arquiteturais (ADRs) |
+| `docs/runbook/local-env.md` | Setup, teardown e deploy do ambiente local |
+| `docs/runbook/kafka.md` | Problemas e soluções do Kafka |
+| `docs/runbook/k3s-argocd.md` | Problemas e soluções do k3s/ArgoCD |
+| `docs/security.md` | Segurança do repositório e CI/CD |
+| `RUNNER.md` | Self-hosted runner do GitHub Actions (CI/CD) |
+| `orders-service/docs/` | Regras de negócio e API do bounded context Orders |
+| `catalog-service/docs/` | Regras de negócio e PricingEngine |
+| `logistics-service/docs/` | RPI, transportadoras e rastreamento |
 
-1. **Pedido mínimo** — R$ 500,00 para clientes PJ; R$ 100,00 para PF.
-2. **Prazo de cancelamento** — até 2 horas após a confirmação sem custo. Após isso, taxa de 5% sobre o valor do pedido.
-3. **Limite de crédito** — o sistema consulta o `CreditService` antes de confirmar. Se o cliente estiver inadimplente ou acima do limite, o pedido vai para revisão manual.
-4. **Desconto por volume** — pedidos acima de R$ 5.000,00 recebem 3% de desconto automático.
-5. **Itens descontinuados** — não podem ser adicionados a novos pedidos, mas pedidos existentes com esses itens não são afetados.
+## Convenções
 
-**API:**
+- Pacote base: `com.rodrigomsr2.nexus.<servico>`
+- Nomenclatura de SKU: `NX-PRD-XXXXX`
+- Nomenclatura de pedido: `NX-XXXXX`
+- Usar `jakarta.*` (não `javax.*`) — Spring Boot 3.x / Jakarta EE 10
+- Records Java para eventos e DTOs imutáveis
+- Switch expressions (Java 14+) para máquinas de estado
+- Flyway para migrations — nunca alterar migrations já aplicadas
+- Nunca commitar secrets — usar Kubernetes Secrets ou vault em produção
 
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| `POST` | `/api/v1/orders` | Cria rascunho |
-| `GET` | `/api/v1/orders/{id}` | Detalha pedido |
-| `PUT` | `/api/v1/orders/{id}/submit` | Confirma pedido |
-| `DELETE` | `/api/v1/orders/{id}` | Cancela pedido |
-| `GET` | `/api/v1/orders?clientId=X` | Lista pedidos do cliente |
+## ADRs vigentes
 
-**Eventos Kafka:**
-
-| Tópico | Evento |
-|--------|--------|
-| `orders.confirmed` | `OrderConfirmedEvent` |
-| `orders.dispatched` | `OrderDispatchedEvent` |
-| `orders.cancelled` | `OrderCancelledEvent` |
-
----
-
-### Catalog
-
-**Estrutura de produto:** cada produto possui SKU (ex: `NX-PRD-00123`), categoria em hierarquia de até 3 níveis, preço base, preço contratual por cliente ou grupo, e status (`ATIVO`, `DESCONTINUADO`, `SUSPENSO`).
-
-**PricingEngine** — resolve o preço final na seguinte ordem de prioridade:
-
-1. Preço contratual específico do cliente
-2. Preço contratual do grupo do cliente
-3. Campanha promocional ativa
-4. Preço base com desconto por volume
-5. Preço base
-
-**Cache:** preços e disponibilidade são cacheados no Redis com TTL de 15 minutos. Ao atualizar um produto no admin, o cache é invalidado imediatamente via `CatalogUpdatedEvent`.
-
----
-
-### Logistics
-
-**Transportadoras integradas:**
-
-| Transportadora | Código | Protocolo |
-|----------------|--------|-----------|
-| Correios | `CORREIOS` | REST API |
-| Jadlog | `JADLOG` | SOAP (legado) |
-| Rapidão Cometa | `RAPIDAO` | REST API |
-
-A seleção da transportadora é automática com base em CEP de destino, peso e dimensões do pacote, prazo de entrega desejado e menor custo para o mesmo prazo.
-
-**Rastreamento:** eventos recebidos por webhook das transportadoras são publicados no tópico Kafka `logistics.tracking`. O frontend consome via Server-Sent Events (SSE) em `/api/v1/tracking/{orderId}/stream` para atualizações em tempo real.
-
-**Gestão de estoque (RPI — Reserva Preventiva de Itens):**
-
-- Reserva ocorre ao **confirmar** o pedido (não ao criar o rascunho)
-- Liberação ocorre ao **cancelar**
-- Estoque físico é atualizado ao **despachar**
-- Alertas de reposição são enviados quando o estoque cai abaixo do `reorder_point` configurado por SKU
-
-## ADRs
-
-- **ADR-001** — Kafka para comunicação assíncrona entre contexts
-- **ADR-002** — Cache Redis no catálogo (reduz 90% leituras no banco)
-- **ADR-003** — Reserva de estoque na confirmação, não no rascunho
-
-## Times
-
-| Time | Canal |
-|------|-------|
-| Backend Core | `#nexus-backend` |
-| Logística | `#nexus-logistics` |
-| Frontend | `#nexus-frontend` |
-| Infra | `#nexus-infra` |
-
-**Tech Lead:** Ana Souza · **Arquiteto:** Rafael Lima · **PM:** Carlos Mendes
+- [ADR-001](docs/adr/ADR-001-kafka-async-communication.md) — Kafka para comunicação assíncrona entre bounded contexts
+- [ADR-002](docs/adr/ADR-002-redis-catalog-cache.md) — Cache Redis no catálogo (reduz 90% das leituras no banco)
+- [ADR-003](docs/adr/ADR-003-stock-reservation-on-confirm.md) — Reserva de estoque na confirmação do pedido, não no rascunho

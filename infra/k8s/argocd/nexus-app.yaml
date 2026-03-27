@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nexus
+  namespace: argocd
+  annotations:
+    # Evita que o ArgoCD delete recursos ao remover do chart
+    argocd.argoproj.io/sync-options: Prune=true
+spec:
+  project: default
+
+  source:
+    # Confirme que este e o URL correto do seu repositorio
+    repoURL: https://github.com/rodrigomsr2/nexus.git
+    targetRevision: HEAD
+    path: infra/helm/nexus
+    helm:
+      valueFiles:
+        - values.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: nexus
+
+  syncPolicy:
+    automated:
+      prune: true       # remove recursos que saíram do chart
+      selfHeal: true    # reverte mudancas manuais no cluster
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 2m

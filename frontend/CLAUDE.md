@@ -50,10 +50,10 @@ echo "VITE_API_BASE_URL=http://localhost:8080" > .env.local
 npm run dev   # http://localhost:3000
 ```
 
-## Observações para o agente
+## Notas de implementação
 
 - Usar React Query para todo estado que vem da API — evitar `useEffect` + `fetch` manual
 - Formulários sempre com React Hook Form + Zod — nunca validação manual inline
 - Componentes por bounded context — não misturar lógica de Orders com Catalog no mesmo componente
-- SSE (`EventSource`) não suporta headers customizados — o token JWT é passado como query param `?token=` no endpoint de streaming
+- SSE (`EventSource`) não suporta headers customizados — token JWT passado como query param `?token=`
 - Em produção o nginx faz proxy para o gateway — não há CORS em produção

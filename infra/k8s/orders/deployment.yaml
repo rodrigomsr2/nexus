@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
         - name: orders-service
-          image: ghcr.io/techcorp/nexus-orders-service:latest
+          image: ghcr.io/rodrigomsr2/nexus-orders-service:latest
           ports:
             - containerPort: 8080
           env:

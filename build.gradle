@@ -5,9 +5,10 @@ plugins {
 
 subprojects {
     apply plugin: 'java'
+    apply plugin: 'jacoco'
     apply plugin: 'io.spring.dependency-management'
 
-    group = 'com.techcorp.nexus'
+    group = 'com.rodrigomsr2.nexus'
     version = '1.0.0-SNAPSHOT'
 
     java {
@@ -30,5 +31,14 @@ subprojects {
 
     test {
         useJUnitPlatform()
+        finalizedBy jacocoTestReport
+    }
+
+    jacocoTestReport {
+        dependsOn test
+        reports {
+            xml.required = true
+            html.required = true
+        }
     }
 }
