@@ -18,7 +18,7 @@ jobs:
   # ---------------------------------------------------------------------------
   build:
     name: Build & Test
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -32,13 +32,14 @@ jobs:
           cache: 'gradle'
 
       - name: Build e testes
+        working-directory: nexus-argocd
         run: ./gradlew build --no-daemon
 
       - name: Upload JAR como artefato
         uses: actions/upload-artifact@v4
         with:
           name: nexus-argocd-jar
-          path: build/libs/nexus-argocd-*.jar
+          path: nexus-argocd/build/libs/nexus-argocd-*.jar
           retention-days: 1
 
   # ---------------------------------------------------------------------------
@@ -85,7 +86,7 @@ jobs:
       - name: Build e push da imagem
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: nexus-argocd
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
