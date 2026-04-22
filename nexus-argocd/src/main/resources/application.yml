@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: nexus-argocd
+
+server:
+  port: 8080
+  shutdown: graceful  # aguarda requests em andamento antes de desligar
+
+management:
+  server:
+    port: 8081  # porta separada para evitar exposição acidental via Ingress
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus, info, metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true  # habilita /actuator/health/liveness e /readiness
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}  # label presente em todas as métricas Prometheus
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true  # histograma para cálculo de p99/p95 no Grafana

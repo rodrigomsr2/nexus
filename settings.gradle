@@ -1,6 +1,0 @@
-rootProject.name = 'nexus-parent'
-
-include 'orders-service'
-include 'catalog-service'
-include 'logistics-service'
-include 'api-gateway'
