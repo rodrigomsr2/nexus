@@ -15,4 +15,4 @@ jobs:
       target-repo: ci-homelab
       event-type: nexus-argocd-push
     secrets:
-      dispatch-token: ${{ secrets.CI_DISPATCH_TOKEN }}
+      dispatch-token: ${{ secrets.GITOPS_TOKEN }}
